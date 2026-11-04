@@ -4,6 +4,17 @@
 
 > Fork customizations: [persistent navigation, Wi-Fi entry, ARM64 media launchers and optional gateway patches (Chinese)](docs/customizations.md). Source changes only, not a newly built flashable image. No personal configuration, credentials or music-source scripts are included.
 
+## Deploying this fork to another device
+
+Only another **CD-18781Y** is in scope, not other ThinkSmart/ARM models. This fork currently has no image Release: flash a verified upstream base image, then install this branch's customizations. A source ZIP is not flashable.
+
+- [New-device guide (Chinese)](docs/new-device-guide.md)
+- [Per-device acceptance checklist](docs/device-checklist.md)
+- [Maintenance and recovery](docs/maintenance-and-recovery.md)
+- [Prerequisites for publishing an integrated image](docs/image-release-readiness.md)
+
+The retained guide below describes the upstream base image, not a ready-made customized image from this fork. Never clone another device's stock eMMC, persist, SSH host keys or complete userdata archive.
+
 Turn a Lenovo **ThinkSmart View (model CD-18781Y)** into a local voice assistant: it boots straight into the voice interface, wakes up on "小麦小麦" (*Xiǎo Mài Xiǎo Mài*), and can talk to Claude, DeepSeek and many other large language models.
 
 The image is based on [rickx/ubuntu-thinksmart](https://github.com/rickx/ubuntu-thinksmart) (Ubuntu 24.04 + postmarketOS kernel 6.19), without the Plasma desktop, and comes with:
@@ -42,7 +53,7 @@ If you are an AI agent the owner asked to help with flashing, read this whole se
 
 ### Goal
 
-Write the image from this repository's Releases to the `system` partition of the owner's ThinkSmart View so that it boots into the voice assistant, then help the owner through first-time setup (Wi-Fi, hub admin password, API key, new default passwords).
+Start with the [new-device guide](docs/new-device-guide.md): verify the target model, its own backup and the upstream base image, then follow the flashing instructions below. Install this fork's customizations only after the base system works. This fork has no customized image Release; never flash its source ZIP or another device's private image.
 
 ### Overall flow
 
@@ -217,7 +228,7 @@ Create a working directory such as `~/thinksmart` and put all the files below in
 
 | File | Where | Needed for |
 | --- | --- | --- |
-| `thinksmart-ubuntu-<date>.img.xz`, `SHA256SUMS` | latest release in this repository's [Releases](https://github.com/justhalfbit/thinksmart-ubuntu-image/releases) | both routes |
+| `thinksmart-ubuntu-<date>.img.xz`, `SHA256SUMS` | compatible upstream base image from [Releases](https://github.com/justhalfbit/thinksmart-ubuntu-image/releases), checked against the [new-device guide](docs/new-device-guide.md); not an integrated image from this fork | both routes |
 | `lk2nd.img` | upstream [prebuilt/lk2nd.img](https://github.com/rickx/ubuntu-thinksmart/raw/main/prebuilt/lk2nd.img) | route A only |
 | `bootstrap-pmos-ssh-generic-qcom-msm8953.img` and its `.sha256` | upstream release [bootstrap-2026-05-22](https://github.com/rickx/ubuntu-thinksmart/releases/tag/bootstrap-2026-05-22) | route A only |
 
@@ -779,6 +790,8 @@ Fix (rewrites only the boot partition, your data stays):
 ---
 
 ## 4. Back up and restore user data
+
+> Complete userdata restoration is for the same device after reflashing, not cross-device cloning. Provision another device with its own identity, host keys and network settings; see the [new-device guide](docs/new-device-guide.md).
 
 The image ships with no personal data. When reflashing from an older version of this image to a newer one, you can back these up first and restore them afterwards:
 

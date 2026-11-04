@@ -4,6 +4,17 @@
 
 > 本 fork 的设备定制：[常驻导航、Wi-Fi 入口、B站/LX Music 启动器与可选天气/播报补丁](docs/customizations.md)。仅源码改动，不是已构建的新刷机镜像；不含个人配置、凭据或第三方音乐源。
 
+## 用这个 fork 部署另一台机器：从这里开始
+
+**仅支持另一台同型号 CD-18781Y，不是通用 ARM 刷机方案。本 fork 当前没有镜像 Release。** 先按下方原教程刷已校验的上游基础镜像，再部署本分支源码；GitHub源码ZIP不能直接刷入。
+
+- [完整的新设备部署指南](docs/new-device-guide.md)：分支获取、该机独立备份、刷机检查点、首次安全设置、导航/媒体和网关配置。
+- [每台设备验收表](docs/device-checklist.md)：复制到仓库外私下填写，不沿用旧设备的测试结果。
+- [维护、换网、排障与逐层回退](docs/maintenance-and-recovery.md)。
+- [制作自有整合镜像前必须解决的问题](docs/image-release-readiness.md)：当前未产出或验证新的整合刷机包。
+
+下方是保留的基础镜像刷机教程，其“本镜像”指上游基础镜像，不表示已经包含本 fork 的定制。跨机器不恢复旧设备整盘、persist、SSH主机私钥或整包userdata。
+
 把联想 **ThinkSmart View（型号 CD-18781Y）** 刷成一台本地语音助手：开机直接进语音界面，说「小麦小麦」唤醒，背后可以接 Claude、DeepSeek 等多种大模型。
 
 镜像基于 [rickx/ubuntu-thinksmart](https://github.com/rickx/ubuntu-thinksmart)（Ubuntu 24.04 + postmarketOS 内核 6.19），去掉了 Plasma 桌面，预装：
@@ -42,7 +53,7 @@
 
 ### 目标
 
-把本仓库 Release 里的镜像写进用户这台 ThinkSmart View 的 `system` 分区，让它开机进入语音助手界面，然后陪用户完成首次设置（WiFi、网关管理员密码、API Key、改默认密码）。
+先依据[新设备部署指南](docs/new-device-guide.md)确认目标、独立备份与基础镜像来源，再逐项执行下方原教程；基础系统正常后才安装本 fork 定制。不要在本 fork 没有镜像 Release 时把源码 ZIP 当刷机镜像，也不要把旧设备的私人镜像用于其它机器。
 
 ### 整体流程
 
@@ -217,7 +228,7 @@ edl --help
 
 | 文件 | 从哪下载 | 什么时候用 |
 | --- | --- | --- |
-| `thinksmart-ubuntu-<日期>.img.xz`、`SHA256SUMS` | 本仓库 [Releases](https://github.com/justhalfbit/thinksmart-ubuntu-image/releases) 最新版 | 两条路线都要 |
+| `thinksmart-ubuntu-<日期>.img.xz`、`SHA256SUMS` | 上游基础镜像 [Releases](https://github.com/justhalfbit/thinksmart-ubuntu-image/releases)，按[新机指南](docs/new-device-guide.md)核对兼容版本；不是本 fork 定制镜像 | 两条路线都要 |
 | `lk2nd.img` | 上游仓库 [prebuilt/lk2nd.img](https://github.com/rickx/ubuntu-thinksmart/raw/main/prebuilt/lk2nd.img) | 只有路线 A |
 | `bootstrap-pmos-ssh-generic-qcom-msm8953.img` 和同名 `.sha256` | 上游 Release [bootstrap-2026-05-22](https://github.com/rickx/ubuntu-thinksmart/releases/tag/bootstrap-2026-05-22) | 只有路线 A |
 
@@ -780,6 +791,8 @@ ssh: connect to host <设备IP> port 22: No route to host
 
 ## 4. 备份和还原用户数据
 
+> 本节整包恢复仅用于原设备重刷后的恢复，不能用来给另一台机器“复制配置”。新机独立生成身份、密钥并配网；详见[跨机器部署边界](docs/new-device-guide.md)。
+
 本镜像不带任何个人数据。从旧版本镜像重刷到新版本时，可以把下面这些先备份、刷完再还原：
 
 - 网关的数据目录：API Key、管理员密码、Grok 登录、聊天记录 `chat.db`；
@@ -916,6 +929,8 @@ tar tf userdata.tar | head -20
 | 目录 | 内容 |
 | --- | --- |
 | `image/` | 出镜像（从设备抓取、清理、打包）、备份还原用户数据的脚本 |
+| `docs/` | 新设备部署、逐机验收、维护回退、定制验证及自有镜像发布门槛 |
+| `media/`、`extras/hub/` | 可选媒体启动器/洛雪全屏工具，以及版本守卫的小智网关补丁与无凭据示例 |
 | `kiosk/` | 展示屏外壳（Weston + WebKitGTK 全屏页面）、欢迎页、屏幕键盘、GPU 看门狗、WiFi 省电和 NTP 设置 |
 | `screen/` | 自动熄屏、接近传感器和加速度唤醒 |
 | `xiaozhi/` | 麦克风服务和音频配置（ALSA、PipeWire、WirePlumber） |

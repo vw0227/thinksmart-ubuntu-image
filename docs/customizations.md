@@ -3,6 +3,8 @@
 本 fork 保存 ThinkSmart View CD-18781Y 的代码级定制，**不是新的可刷镜像**。
 没有重新构建或发布镜像，不替换上游 Release；刷机、分区和备份规则仍按原教程。
 
+要部署到另一台同型号机器，请先读[新设备部署指南](new-device-guide.md)，再按[逐机验收表](device-checklist.md)交付。[维护回退](maintenance-and-recovery.md)和[自有镜像门槛](image-release-readiness.md)说明当前支持边界。
+
 ## 本次纳入
 
 - GTK 底栏：语音助手、哔哩哔哩、洛雪音乐、后退、刷新、Wi-Fi 设置；深蓝配色、图标和至少 58px 触摸高度。
