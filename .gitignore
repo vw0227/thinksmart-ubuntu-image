@@ -6,3 +6,23 @@ codec-dmic/out/
 __pycache__/
 *.pyc
 .DS_Store
+# Never publish device captures, personal state, credentials or downloaded packages.
+*.deb
+*.AppImage
+*.bin
+*.key
+*.pem
+*.nmconnection
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+.config.yaml
+ghp_*
+backups/
+private/
+device-state/
+logs/

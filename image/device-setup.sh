@@ -29,6 +29,7 @@ files() {
     install -m 755 kiosk/thinksmart-kiosk.py kiosk/thinksmart-kiosk-session kiosk/thinksmart-kiosk-app \
         kiosk/kiosk-mode kiosk/gpu-watchdog.py screen/idle-blanker.py screen/screen-wake-daemon.py \
         screen/vcnl4200-proximity-daemon.py xiaozhi/thinksmart-mic /usr/local/bin/
+    install -m 644 kiosk/thinksmart_browser_navigation.py /usr/local/bin/
     install -d /usr/local/share/thinksmart-kiosk
     install -m 644 kiosk/welcome.html kiosk/keyboard.js kiosk/qrcode.js /usr/local/share/thinksmart-kiosk/
     [ -e /etc/thinksmart-kiosk.conf ] || install -m 644 kiosk/thinksmart-kiosk.conf /etc/

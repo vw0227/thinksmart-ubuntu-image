@@ -26,6 +26,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 from gi.repository import GLib, Gtk, WebKit2  # noqa: E402
+from thinksmart_browser_navigation import HomeReturn, wrap_view
 
 CONF = '/etc/thinksmart-kiosk.conf'
 WELCOME = '/usr/local/share/thinksmart-kiosk/welcome.html'
@@ -285,6 +286,7 @@ def reachable(url):
 
 def main():
     conf = read_conf()
+    os.environ['GST_AUDIO_SINK'] = 'pulsesink'
     url = conf.get('URL', '')
     # Extra environment for the WebKit/Mesa renderer, e.g. WEBKIT_ENV="WEBKIT_FORCE_VBLANK_TIMER=1";
     # set before the web process is spawned so it inherits them
@@ -382,9 +384,17 @@ def main():
         st.update(target=url, tries=state['tries'], help=conf.get('HELP_URL', ''))
         return st
 
-    def show_welcome():
+    def show_welcome(wifi=False):
         state['welcome'] = True
-        view.load_uri('file://' + WELCOME + '?' + urllib.parse.urlencode(page_status()))
+        state['busy'] = bool(wifi)
+        view.load_uri('file://' + WELCOME + '?' + urllib.parse.urlencode(page_status())
+                      + ('#wifi' if wifi else ''))
+
+    def on_uri_changed(_view, _property):
+        if not (_view.get_uri() or '').startswith('file://' + WELCOME):
+            state['welcome'] = state['busy'] = False
+
+    view.connect('notify::uri', on_uri_changed)
 
     def on_load_failed(_view, _event, failing_uri, error):
         # Cancelled loads are our own navigations (e.g. switching to the welcome page)
@@ -442,7 +452,35 @@ def main():
     GLib.timeout_add_seconds(RETRY_SECONDS, check_target)
 
     window = Gtk.Window(title='ThinkSmart Kiosk')
-    window.add(view)
+    home_return = HomeReturn(view, GLib, WebKit2, url, Gtk.main_quit)
+
+    def return_home():
+        state['welcome'] = state['busy'] = False
+        home_return()
+
+    def open_wifi():
+        show_welcome(wifi=True)
+
+    native_process = None
+    native_binaries = {
+        'bilibili': '/opt/apps/io.github.msojocs.bilibili/files/bin/electron/electron',
+        'lx-music': '/opt/lx-music-desktop/lx-music-desktop',
+    }
+    available_apps = [name for name, binary in native_binaries.items()
+                      if os.access('/usr/local/bin/thinksmart-' + name, os.X_OK)
+                      and os.path.isfile(binary)]
+
+    def launch_native(name):
+        nonlocal native_process
+        command = {'bilibili': '/usr/local/bin/thinksmart-bilibili',
+                   'lx-music': '/usr/local/bin/thinksmart-lx-music'}.get(name)
+        if command and (native_process is None or native_process.poll() is not None):
+            native_process = subprocess.Popen([command], stdin=subprocess.DEVNULL,
+                                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    window.add(wrap_view(Gtk, WebKit2, view, return_home, cancel_home=home_return.cancel,
+                         open_wifi=open_wifi, home_url=url, launch_app=launch_native,
+                         available_apps=available_apps))
     window.connect('destroy', Gtk.main_quit)
     window.fullscreen()
     window.show_all()

@@ -1,0 +1,164 @@
+diff --git a/main/xiaozhi-server/core/providers/llm/openai/openai.py b/main/xiaozhi-server/core/providers/llm/openai/openai.py
+index a118073..248ee53 100644
+--- a/main/xiaozhi-server/core/providers/llm/openai/openai.py
++++ b/main/xiaozhi-server/core/providers/llm/openai/openai.py
+@@ -2,2 +2,4 @@ import socket
+ import threading
++import json
++import re
+ 
+@@ -14,2 +16,25 @@ logger = setup_logging()
+ 
++
++def weather_lookup_requested(dialogue, functions):
++    """Route explicit Chinese weather lookups, not capability questions or tool replies."""
++    if not dialogue or dialogue[-1].get("role") != "user":
++        return False
++    if not any(t.get("function", {}).get("name") == "get_weather" for t in functions or []):
++        return False
++    text = dialogue[-1].get("content")
++    if not isinstance(text, str):
++        return False
++    try:
++        structured = json.loads(text)
++        if isinstance(structured, dict):
++            text = structured.get("content", "")
++    except (ValueError, TypeError):
++        pass
++    if not isinstance(text, str) or "天气" not in text:
++        return False
++    if any(word in text for word in ("为什么", "怎么设置", "怎么配置", "插件", "接口", "工具", "修复", "联网", "不能查", "不要查", "别查", "不查")):
++        return False
++    markers = ("今天", "明天", "后天", "现在", "目前", "未来", "这周", "周末", "天气怎么样", "天气如何", "什么天气", "查天气", "查一下", "查下")
++    return any(word in text for word in markers) or bool(re.fullmatch(r"[\u4e00-\u9fffA-Za-z· ]{2,24}天气[？?。！!]*", text.strip()))
++
+ # 需要禁用思考模式的平台域名及其对应参数（默认关闭思考模式）
+@@ -36,2 +61,3 @@ class LLMProvider(LLMProviderBase):
+         self.extra_body = config.get("extra_body")  # [xiaozhi-hub]
++        self.weather_tool_first = bool(config.get("weather_tool_first", False))
+ 
+@@ -185,2 +211,4 @@ class LLMProvider(LLMProviderBase):
+         }
++        if self.weather_tool_first and weather_lookup_requested(dialogue, functions):
++            request_params["tool_choice"] = {"type": "function", "function": {"name": "get_weather"}}
+ 
+diff --git a/main/xiaozhi-server/core/providers/tts/edge.py b/main/xiaozhi-server/core/providers/tts/edge.py
+index d049680..8c0a497 100644
+--- a/main/xiaozhi-server/core/providers/tts/edge.py
++++ b/main/xiaozhi-server/core/providers/tts/edge.py
+@@ -21,2 +21,6 @@ class TTSProvider(TTSProviderBase):
+         self.audio_file_type = config.get("format", "mp3")
++        # Only this provider uses the proxy; domestic model/news traffic stays direct.
++        self.proxy = config.get("proxy") or None
++        self.connect_timeout = int(config.get("connect_timeout", 10))
++        self.receive_timeout = int(config.get("receive_timeout", 60))
+ 
+@@ -57,2 +61,5 @@ class TTSProvider(TTSProviderBase):
+                 pitch=self.edge_pitch,
++                proxy=self.proxy,
++                connect_timeout=self.connect_timeout,
++                receive_timeout=self.receive_timeout,
+             )
+diff --git a/main/xiaozhi-server/plugins_func/functions/get_weather.py b/main/xiaozhi-server/plugins_func/functions/get_weather.py
+index c0c4118..fe4e29a 100644
+--- a/main/xiaozhi-server/plugins_func/functions/get_weather.py
++++ b/main/xiaozhi-server/plugins_func/functions/get_weather.py
+@@ -6,2 +6,3 @@ from core.utils.util import get_ip_info
+ from typing import TYPE_CHECKING
++from core.utils.open_meteo_weather import fetch_open_meteo_report
+ 
+@@ -20,3 +21,3 @@ GET_WEATHER_FUNCTION_DESC = {
+             "如果用户说的是省份，默认用省会城市。如果用户说的不是省份或城市而是一个地名，默认用该地所在省份的省会城市。"
+-            "重要：本地未来7天天气已在上下文中提供，用户未指明其他城市时绝对不要调用此工具。"
++            "用户询问今天、明天或未来天气时调用本工具获取最新数据。未指定地点时使用配置的默认城市。"
+         ),
+@@ -168,2 +169,17 @@ async def get_weather(conn: "ConnectionHandler", location: str = None, lang: str
+     weather_config = conn.config.get("plugins", {}).get("get_weather", {})
++    if weather_config.get("provider") == "open_meteo":
++        city = (location or weather_config.get("default_location") or "北京").strip()
++        cache_key = f"open_meteo_{city}_{lang}"
++        cached = cache_manager.get(CacheType.WEATHER, cache_key)
++        if cached:
++            return ActionResponse(Action.REQLLM, cached, None)
++        try:
++            report = await fetch_open_meteo_report(city)
++        except Exception as exc:
++            # Do not send exception URLs, credential values, or misleading city errors to LLM.
++            logger.bind(tag=TAG).warning(f"Open-Meteo天气请求失败: {type(exc).__name__}")
++            return ActionResponse(Action.REQLLM, f"暂时无法获取{city}的天气，请稍后再试；不要编造天气数据。", None)
++        cache_manager.set(CacheType.WEATHER, cache_key, report, ttl=600)
++        return ActionResponse(Action.REQLLM, report, None)
++
+     api_host = weather_config.get("api_host", "mj7p3y7naa.re.qweatherapi.com")
+diff --git a/main/xiaozhi-server/core/utils/open_meteo_weather.py b/main/xiaozhi-server/core/utils/open_meteo_weather.py
+new file mode 100644
+--- /dev/null
++++ b/main/xiaozhi-server/core/utils/open_meteo_weather.py
+@@ -0,0 +1,67 @@
++"""Keyless personal-use weather provider. Source: https://open-meteo.com/en/docs."""
++import asyncio
++from datetime import datetime, timedelta, timezone
++
++import httpx
++
++
++WMO = {
++    0: "晴", 1: "大部晴朗", 2: "局部多云", 3: "阴", 45: "雾", 48: "雾凇",
++    51: "小毛毛雨", 53: "中毛毛雨", 55: "大毛毛雨", 56: "轻微冻毛毛雨", 57: "冻毛毛雨",
++    61: "小雨", 63: "中雨", 65: "大雨", 66: "轻微冻雨", 67: "冻雨",
++    71: "小雪", 73: "中雪", 75: "大雪", 77: "米雪", 80: "小阵雨", 81: "中阵雨",
++    82: "强阵雨", 85: "小阵雪", 86: "大阵雪", 95: "雷暴", 96: "雷暴伴小冰雹", 99: "雷暴伴大冰雹",
++}
++
++
++def format_report(city, data):
++    """Require dated current data; never describe old/malformed output as live weather."""
++    current, daily = data["current"], data["daily"]
++    tz = timezone(timedelta(seconds=int(data["utc_offset_seconds"])))
++    valid_time = datetime.fromisoformat(current["time"]).replace(tzinfo=tz)
++    if abs((datetime.now(tz) - valid_time).total_seconds()) > 7200:
++        raise ValueError("weather data is not current")
++    temperature = float(current["temperature_2m"])
++    lines = [
++        f"您查询的位置是：{city}",
++        f"数据有效时间：{current['time']}（{data['timezone']}）",
++        f"当前天气: {WMO.get(current['weather_code'], '天气代码'+str(current['weather_code']))}，气温{temperature:g}℃，"
++        f"体感{float(current['apparent_temperature']):g}℃，湿度{current['relative_humidity_2m']}%，"
++        f"风速{current['wind_speed_10m']}公里/小时。",
++        "未来7天预报：",
++    ]
++    if not daily["time"]:
++        raise ValueError("missing forecast")
++    for i, day in enumerate(daily["time"]):
++        low, high = daily["temperature_2m_min"][i], daily["temperature_2m_max"][i]
++        if low is None or high is None:
++            raise ValueError("missing forecast temperatures")
++        lines.append(f"{day}: {WMO.get(daily['weather_code'][i], '天气状况未知')}，气温{low}~{high}℃，降水概率{daily['precipitation_probability_max'][i]}%。")
++    lines.append("数据来源：Open-Meteo（https://open-meteo.com/），当前条件来自更新的气象模型，非现场气象站实测。按数据回答，不要编造；默认简短播报今天，用户问明天再介绍明天。")
++    return "\n".join(lines)
++
++
++async def _fetch(location):
++    async with httpx.AsyncClient(timeout=httpx.Timeout(6.0, connect=3.0), follow_redirects=False) as client:
++        if location in ("北京", "北京市"):
++            city, latitude, longitude = "北京", 39.9075, 116.39723
++        else:
++            response = await client.get("https://geocoding-api.open-meteo.com/v1/search", params={"name": location, "count": 5, "language": "zh"})
++            response.raise_for_status()
++            matches = response.json().get("results") or []
++            if not matches:
++                raise ValueError("location not resolved")
++            match = matches[0]
++            city, latitude, longitude = match["name"], match["latitude"], match["longitude"]
++        response = await client.get("https://api.open-meteo.com/v1/forecast", params={
++            "latitude": latitude, "longitude": longitude,
++            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
++            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
++            "timezone": "auto", "forecast_days": 7,
++        })
++        response.raise_for_status()
++        return format_report(city, response.json())
++
++
++async def fetch_open_meteo_report(location):
++    return await asyncio.wait_for(_fetch(location), timeout=12)

@@ -1,0 +1,25 @@
+# Reference fields only: merge into the existing private data/.config.yaml after
+# backing it up. Do NOT replace the private file with this incomplete example.
+# Set API credentials in the local admin UI, never in a public repository.
+LLM:
+  CustomOpenAILLM:
+    base_url: https://api.siliconflow.cn/v1
+    model_name: deepseek-ai/DeepSeek-V4.1-Flash
+    weather_tool_first: true
+    extra_body:
+      enable_thinking: false
+TTS:
+  EdgeTTS:
+    voice: zh-CN-XiaoxiaoNeural
+    proxy: ''
+    connect_timeout: 4
+    receive_timeout: 8
+plugins:
+  get_weather:
+    provider: open_meteo
+    default_location: 北京
+# Enable function_call in the local admin UI. In the actually selected Intent
+# entry retain existing tools, and enable these available plugins:
+#   get_weather, get_news_from_newsnow, get_news_from_chinanews
+# Intent/TTS entry names may differ; use the actual selected entries rather than
+# blindly replacing selected_module or existing entries with a template.

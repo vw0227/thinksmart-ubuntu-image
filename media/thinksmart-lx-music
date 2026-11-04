@@ -1,0 +1,9 @@
+#!/bin/sh
+export XDG_RUNTIME_DIR=/run/user/1000
+export WAYLAND_DISPLAY=wayland-1
+export PULSE_SERVER=unix:/run/user/1000/pulse/native
+unset ELECTRON_RUN_AS_NODE
+# Match the existing native-media lock; keep Chromium's namespace sandbox.
+exec /usr/bin/flock --nonblock /run/user/1000/thinksmart-native-media.lock \
+  /opt/lx-music-desktop/lx-music-desktop \
+  --ozone-platform=wayland --disable-setuid-sandbox --disable-gpu -dha -dt "$@"

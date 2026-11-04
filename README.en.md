@@ -2,6 +2,8 @@
 
 [中文](README.md) | English
 
+> Fork customizations: [persistent navigation, Wi-Fi entry, ARM64 media launchers and optional gateway patches (Chinese)](docs/customizations.md). Source changes only, not a newly built flashable image. No personal configuration, credentials or music-source scripts are included.
+
 Turn a Lenovo **ThinkSmart View (model CD-18781Y)** into a local voice assistant: it boots straight into the voice interface, wakes up on "小麦小麦" (*Xiǎo Mài Xiǎo Mài*), and can talk to Claude, DeepSeek and many other large language models.
 
 The image is based on [rickx/ubuntu-thinksmart](https://github.com/rickx/ubuntu-thinksmart) (Ubuntu 24.04 + postmarketOS kernel 6.19), without the Plasma desktop, and comes with:

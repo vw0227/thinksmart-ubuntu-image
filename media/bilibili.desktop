@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=哔哩哔哩
+Comment=社区 bilibili-linux ARM64 客户端
+Exec=/usr/local/bin/thinksmart-bilibili
+Icon=io.github.msojocs.bilibili
+Terminal=false
+Categories=AudioVideo;Video;

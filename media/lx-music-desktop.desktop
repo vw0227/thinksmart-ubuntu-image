@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=洛雪音乐
+Comment=LX Music
+Exec=/usr/local/bin/thinksmart-lx-music %U
+Terminal=false
+Type=Application
+Icon=lx-music-desktop
+Categories=AudioVideo;Audio;Music;
+MimeType=x-scheme-handler/lxmusic;

@@ -1,0 +1,11 @@
+#!/bin/sh
+export XDG_RUNTIME_DIR=/run/user/1000
+export WAYLAND_DISPLAY=wayland-1
+export PULSE_SERVER=unix:/run/user/1000/pulse/native
+export ELECTRON_FORCE_IS_PACKAGED=true
+unset ELECTRON_RUN_AS_NODE
+# Keep Chromium's user-namespace sandbox; do not use upstream's --no-sandbox launcher.
+exec /usr/bin/flock --nonblock /run/user/1000/thinksmart-native-media.lock /opt/apps/io.github.msojocs.bilibili/files/bin/electron/electron \
+  /opt/apps/io.github.msojocs.bilibili/files/bin/app/app.asar \
+  --ozone-platform=wayland --disable-setuid-sandbox --disable-gpu \
+  --disable-accelerated-video-decode "$@"

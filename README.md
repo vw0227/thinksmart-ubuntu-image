@@ -2,6 +2,8 @@
 
 中文 | [English](README.en.md)
 
+> 本 fork 的设备定制：[常驻导航、Wi-Fi 入口、B站/LX Music 启动器与可选天气/播报补丁](docs/customizations.md)。仅源码改动，不是已构建的新刷机镜像；不含个人配置、凭据或第三方音乐源。
+
 把联想 **ThinkSmart View（型号 CD-18781Y）** 刷成一台本地语音助手：开机直接进语音界面，说「小麦小麦」唤醒，背后可以接 Claude、DeepSeek 等多种大模型。
 
 镜像基于 [rickx/ubuntu-thinksmart](https://github.com/rickx/ubuntu-thinksmart)（Ubuntu 24.04 + postmarketOS 内核 6.19），去掉了 Plasma 桌面，预装：

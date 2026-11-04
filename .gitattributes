@@ -1,0 +1,10 @@
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.patch text eol=lf
+# A unified diff's blank context line must contain its leading space.
+*.patch whitespace=-blank-at-eol
+*.desktop text eol=lf
+kiosk/thinksmart-kiosk-app text eol=lf
+kiosk/thinksmart-kiosk-session text eol=lf
+media/thinksmart-* text eol=lf
